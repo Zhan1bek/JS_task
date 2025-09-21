@@ -27,12 +27,12 @@ function promisify(fn) {
       });
     };
 }
-
+    
 
 // TODO: create wrappers using promisify
-const getUserP   = /* TODO */ null;
-const getOrdersP = /* TODO */ null;
-const getRecsP   = /* TODO */ null;
+const getUserP   = promisify(getUserCB);
+const getOrdersP = promisify(getOrdersCB);
+const getRecsP   = promisify(getRecsCB);
 
 /* ──────────────────────────────────────────────────────────────────────────
    - After fetching user and orders, INSERT a step that rejects with
@@ -48,9 +48,9 @@ function runSequential() {
             return getOrdersP(user.id).then(orders => ({ user, orders }));
         })
         .then(({ user, orders }) => {
-            // TODO: business-rule failure here
+             if (orders.length === 0) throw new Error("No orders");
 
-            throw new Error("TODO: add business-rule check & continue chain");
+            return getRecsP(user.id).then(recommendations => ({ user, orders, recommendations }));
         })
         .then(({ user, orders, recommendations }) => {
             console.log("final (sequential):", { user, orders, recommendations });
@@ -74,8 +74,10 @@ function runParallel() {
     return getUserP(2)
         .then(user => {
             // TODO: run both in parallel using Promise.all and then log result
-
-            throw new Error("TODO: implement Promise.all fan-out");
+            const ordersPromise = getOrdersP(user.id);
+            const recsPromise = getRecsP(user.id);
+            return Promise.all([ordersPromise, recsPromise])
+                .then(([orders, recommendations]) => ({ user, orders, recommendations }));
         })
         .then(({ user, orders, recommendations }) => {
             console.log("final (parallel):", { user, orders, recommendations });
@@ -98,7 +100,16 @@ function runRaceOptional() {
     const p1 = new Promise(res => setTimeout(() => res("p1"), 120));
     const p2 = new Promise(res => setTimeout(() => res("p2"), 60));
     // TODO:practice  Promise.race return then (winner as console.log("race winner:", winner));
-    console.log("TODO: implement Promise.race");
+    return Promise.race([p1, p2])
+        .then(winner => { 
+            console.log("race winner:", winner);
+        })
+        .catch(err => { 
+            console.error("Caught (race):", err.message);
+        })
+        .finally(() => { 
+            console.log("Done (race)"); 
+        });
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
